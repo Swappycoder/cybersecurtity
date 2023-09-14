@@ -102,8 +102,7 @@ def roundI(ci, k, round):
         mixCol = mix_columns(shRow)
 
     return xor(bin_to_hex(mixCol), k)
-
-
+        
 key = "4AF5"
 plain_text = input("Enter 16-bit plain text in hexadecimal: ").upper()
 current_iteration = plain_text
@@ -115,3 +114,62 @@ for i, keyI in enumerate(generate_keys(key)):
 cipher_text = current_iteration.upper()
 
 print("Cipher text: ", cipher_text)
+
+def inverse_substitute_nibble(k):
+    s_box_inv = [
+        ["A", "5", "9", "B"],
+        ["1", "7", "8", "F"],
+        ["6", "0", "2", "3"],
+        ["C", "4", "D", "E"]
+    ]
+
+    n = len(k) // 4
+
+    res = ""
+
+    for i in range(n):
+        x = int(k[4 * i: 4 * i + 2], 2)
+        y = int(k[4 * i + 2: 4 * i + 4], 2)
+
+        res += hex_to_bin(s_box_inv[x][y], 4)
+
+    return res
+
+def inv_mix_columns(s):
+    lookup = {
+        1: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"],
+        2: ["0", "2", "4", "6", "8", "A", "C", "E", "3", "1", "7", "5", "B", "9", "F", "D"],
+        4: ["0", "4", "8", "C", "3", "7", "B", "F", "6", "2", "E", "A", "5", "1", "D", "9"],
+        9: ["0", "9", "1", "8", "2", "B", "3", "A", "4", "D", "5", "C", "6", "F", "7", "E"],
+    }
+
+    s = str_to_matrix(s)
+    M = [[9, 2], [2, 9]]
+    _s = [[0, 0], [0, 0]]
+
+    def mmul(i, j): return lookup[i][j]
+
+    _s[0][0] = xor(mmul(M[0][0], s[0][0]), mmul(M[0][1], s[1][0]))
+    _s[0][1] = xor(mmul(M[0][0], s[0][1]), mmul(M[0][1], s[1][1]))
+    _s[1][0] = xor(mmul(M[1][0], s[0][0]), mmul(M[1][1], s[1][0]))
+    _s[1][1] = xor(mmul(M[1][0], s[0][1]), mmul(M[1][1], s[1][1]))
+    return matrix_to_str(_s)
+
+def round_decrypt(ci,k,round):
+    if round == 0:
+        return xor(ci, k)
+    inv_shrow=shift_rows(hex_to_bin(ci))
+    inv_subnib=inverse_substitute_nibble(inv_shrow)
+    addkey=xor(inv_subnib,hex_to_bin(k))
+    mixCol = addkey
+    if round != 2:
+        mixCol = inv_mix_columns(addkey)
+
+    return bin_to_hex(mixCol)
+
+keys = [k for k in generate_keys(key)]
+for i, keyI in enumerate(keys[::-1]):
+        current_iteration = round_decrypt(current_iteration, keyI, i)
+
+plain_text = current_iteration.upper()
+print(plain_text)
